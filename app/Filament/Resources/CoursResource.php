@@ -15,6 +15,9 @@ use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
+use Filament\Forms\Components\Wizard;
+use Illuminate\Support\Facades\Blade;
+use Illuminate\Support\HtmlString;
 
 class CoursResource extends Resource
 {
@@ -26,88 +29,52 @@ class CoursResource extends Resource
 
     protected static ?string $label = 'Cours';
 
-
-
-    private function disponibleTeacher($teacherId, $dateCours, $heureDebut, $heureFin)
-    {
-        // Vérifier si l'enseignant a déjà un cours à la même date et pendant le même intervalle horaire
-        $existingCours = Cours::where('teacher_id', $teacherId)
-            ->where('date_cours', $dateCours)
-            ->where(function ($query) use ($heureDebut, $heureFin) {
-                $query->where(function ($q) use ($heureDebut, $heureFin) {
-                    $q->whereBetween('heure_debut', [$heureDebut, $heureFin])
-                        ->orWhereBetween('heure_fin', [$heureDebut, $heureFin]);
-                })->orWhere(function ($q) use ($heureDebut, $heureFin) {
-                    $q->where('heure_debut', '<=', $heureDebut)
-                        ->where('heure_fin', '>=', $heureFin);
-                });
-            })
-            ->exists();
-
-        return !$existingCours;
-    }
-
-    private function disponibleLocal($localId, $dateCours, $heureDebut, $heureFin)
-    {
-        // Vérifier si le local est disponible à la même date et pendant le même intervalle horaire
-        $existingCours = Cours::where('local_id', $localId)
-            ->where('date_cours', $dateCours)
-            ->where(function ($query) use ($heureDebut, $heureFin) {
-                $query->where(function ($q) use ($heureDebut, $heureFin) {
-                    $q->whereBetween('heure_debut', [$heureDebut, $heureFin])
-                        ->orWhereBetween('heure_fin', [$heureDebut, $heureFin]);
-                })->orWhere(function ($q) use ($heureDebut, $heureFin) {
-                    $q->where('heure_debut', '<=', $heureDebut)
-                        ->where('heure_fin', '>=', $heureFin);
-                });
-            })
-            ->exists();
-
-        return !$existingCours;
-    }
-
-    private function disponibleGroupe($groupeId, $dateCours, $heureDebut, $heureFin)
-    {
-        // Vérifier si le groupe est disponible à la même date et pendant le même intervalle horaire
-        $existingCours = Cours::where('groupe_id', $groupeId)
-            ->where('date_cours', $dateCours)
-            ->where(function ($query) use ($heureDebut, $heureFin) {
-                $query->where(function ($q) use ($heureDebut, $heureFin) {
-                    $q->whereBetween('heure_debut', [$heureDebut, $heureFin])
-                        ->orWhereBetween('heure_fin', [$heureDebut, $heureFin]);
-                })->orWhere(function ($q) use ($heureDebut, $heureFin) {
-                    $q->where('heure_debut', '<=', $heureDebut)
-                        ->where('heure_fin', '>=', $heureFin);
-                });
-            })
-            ->exists();
-
-        return !$existingCours;
-    }
+    protected static ?string $pluralLabel = 'Cours';
 
     public static function form(Form $form): Form
     {
+        $itemModel = $form->getRecord();
         return $form
+
             ->schema([
-                Forms\Components\BelongsToSelect::make('groupe_id')
-                    ->relationship('groupe',  'classe')
-                    ->required()
-                    ->rules([new GroupeDisponibilite]),
-                Forms\Components\BelongsToSelect::make('teacher_id')
-                    ->relationship('enseignant', 'nom')
-                    ->required()
-                    ->rules([new EnseignantDisponibilite]),
-                Forms\Components\BelongsToSelect::make('local_id')
-                    ->relationship('local', 'nom_salle')
-                    ->required()
-                    ->rules([new LocalDisponibilite]),
-                Forms\Components\DatePicker::make('date_cours')
-                    ->required(),
-                Forms\Components\TimePicker::make('heure_debut')
-                    ->required(),
-                Forms\Components\TimePicker::make('heure_fin')
-                    ->required(),
-            ]);
+                Wizard::make([
+                    // separer heure debut et fin dans un autre wizard pour s'assurer que date_cours est saisie avant
+                    Wizard\Step::make('Informations')
+                        ->icon('heroicon-o-information-circle')
+                        ->schema([
+                            Forms\Components\BelongsToSelect::make('groupe_id')
+                                ->relationship('groupe', 'classe')
+                                ->required(),
+                            Forms\Components\BelongsToSelect::make('teacher_id')
+                                ->relationship('enseignant', 'nom')
+                                ->required(),
+                            Forms\Components\BelongsToSelect::make('local_id')
+                                ->relationship('local', 'nom_salle')
+                                ->required(),
+                            Forms\Components\DatePicker::make('date_cours')
+                                ->minDate(now()->format('Y-m-d'))
+                                ->required(),
+                        ]),
+                    Wizard\Step::make('Heure')
+                        ->icon('heroicon-o-clock')
+                        ->schema([
+                            Forms\Components\TimePicker::make('heure_debut')
+                                // Vérifie si $itemModel existe avant d'accéder à ses propriétés
+                                ->minDate($itemModel ? now()->format('Y-m-d') === $itemModel->date_cours ? now()->format('H:i') : '08:00' : '08:00')
+                                ->required(),
+                            Forms\Components\TimePicker::make('heure_fin')
+                                ->minDate($itemModel ? now()->format('Y-m-d') === $itemModel->date_cours ? now()->format('H:i') : '08:00' : '08:00')
+                        ]),
+                ])->submitAction(new HtmlString(Blade::render(<<<BLADE
+                <x-filament::button
+                    type="submit"
+                    size="sm"
+                >
+                    Submit
+                </x-filament::button>
+            BLADE))),
+            ])->columns(1);
+
     }
     public static function table(Table $table): Table
     {

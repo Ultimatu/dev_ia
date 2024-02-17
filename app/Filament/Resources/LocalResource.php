@@ -19,11 +19,15 @@ class LocalResource extends Resource
 
     protected static ?string $navigationIcon = 'heroicon-o-home-modern';
 
-    protected static ?string $navigationLabel = "Locaux";
+    protected static ?string $navigationLabel = "Salle";
 
-    protected static ?string $label = "Locaux";
+    protected static ?string $label = "Salle";
 
-    protected static ?string $breadcrumb = "Locaux";
+    protected static ?string $breadcrumb = "Salle";
+
+    protected static ?string $pluralLabel = "Salle";
+
+
 
     public static function form(Form $form): Form
     {

@@ -10,19 +10,23 @@ class GroupeDisponibilite implements Rule
 {
 
 
-
-
-        /**
+    /**
      * Determine if the validation rule passes.
      *
      * @param  string  $attribute
      * @param  mixed  $value
      * @return bool
      */
-    public function passes($attribute, $value){
-        $dateCours = request('date_cours');
-        $heureDebut = request('heure_debut');
-        $heureFin = request('heure_fin');
+    public function passes($attribute, $value)
+    {
+        // Récupérer les données de la requête
+        $requestData = request()->all();
+        // Récupérer les mises à jour
+        $updates = $requestData['components'][0]['updates'];
+        dd($updates);
+        $dateCours = $updates['data.date_cours'];
+        $heureDebut = $updates['data.heure_debut'];
+        $heureFin = $updates['data.heure_fin'];
 
         // Vérifier la disponibilité du groupe
         $existingCours = Cours::where('groupe_id', $value)
@@ -50,7 +54,8 @@ class GroupeDisponibilite implements Rule
      *
      * @return string|array
      */
-    public function message(){
+    public function message()
+    {
         return 'Ce groupe est occupé à la même heure.';
     }
 }

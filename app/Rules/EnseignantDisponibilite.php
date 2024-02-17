@@ -28,9 +28,6 @@ class EnseignantDisponibilite implements Rule
                 $query->where(function ($q) use ($heureDebut, $heureFin) {
                     $q->whereBetween('heure_debut', [$heureDebut, $heureFin])
                         ->orWhereBetween('heure_fin', [$heureDebut, $heureFin]);
-                })->orWhere(function ($q) use ($heureDebut, $heureFin) {
-                    $q->where('heure_debut', '<=', $heureDebut)
-                        ->where('heure_fin', '>=', $heureFin);
                 });
             })
             ->exists();
